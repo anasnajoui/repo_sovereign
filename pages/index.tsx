@@ -8,11 +8,18 @@ const scrambleChars = '#@$%&#{|}=+<>[]~';
 
 function ScrambleText({ text, reveal, className = '' }: { text: string; reveal: boolean; className?: string }) {
   const [scrambled, setScrambled] = useState(text);
-  const [hasRevealed, setHasRevealed] = useState(false);
+  const hasRevealed = useRef(false);
+  const intervalRef = useRef<NodeJS.Timeout>();
   
   useEffect(() => {
-    if (!reveal && !hasRevealed) {
-      const interval = setInterval(() => {
+    if (reveal && !hasRevealed.current) {
+      hasRevealed.current = true;
+      setScrambled(text);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    } else if (!reveal && !hasRevealed.current) {
+      intervalRef.current = setInterval(() => {
         setScrambled(
           text
             .split('')
@@ -22,18 +29,20 @@ function ScrambleText({ text, reveal, className = '' }: { text: string; reveal: 
             .join('')
         );
       }, 50);
-      return () => clearInterval(interval);
-    } else {
-      setScrambled(text);
-      setHasRevealed(true);
     }
-  }, [text, reveal, hasRevealed]);
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [text, reveal]);
 
   return <span className={`terminal-text ${className}`}>{scrambled}</span>;
 }
 
 function RevealSection({ children, threshold = 0.5, className = '' }: { children: ReactNode; threshold?: number; className?: string }) {
-  const ref = useRef(null);
+  const ref = useRef<HTMLDivElement>(null);
   const [isVisible, setIsVisible] = useState(false);
   const hasTriggered = useRef(false);
 
@@ -41,21 +50,30 @@ function RevealSection({ children, threshold = 0.5, className = '' }: { children
     if (hasTriggered.current) return;
 
     const observer = new IntersectionObserver(
-      ([entry]) => {
+      (entries) => {
+        const [entry] = entries;
         if (entry.isIntersecting && !hasTriggered.current) {
-          setIsVisible(true);
           hasTriggered.current = true;
+          setIsVisible(true);
           observer.disconnect();
         }
       },
-      { threshold }
+      {
+        threshold,
+        rootMargin: '50px 0px',
+      }
     );
 
-    if (ref.current) {
-      observer.observe(ref.current);
+    const currentRef = ref.current;
+    if (currentRef) {
+      observer.observe(currentRef);
     }
 
-    return () => observer.disconnect();
+    return () => {
+      if (currentRef) {
+        observer.unobserve(currentRef);
+      }
+    };
   }, [threshold]);
 
   return (
