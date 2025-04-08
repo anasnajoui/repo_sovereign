@@ -6,81 +6,103 @@ import { motion, useScroll, useSpring, useTransform, AnimatePresence } from 'fra
 
 const scrambleChars = '#@$%&#{|}=+<>[]~';
 
-function ScrambleText({ text, reveal, className = '' }: { text: string; reveal: boolean; className?: string }) {
-  const [scrambled, setScrambled] = useState(text);
-  const hasRevealed = useRef(false);
-  const intervalRef = useRef<NodeJS.Timeout>();
-  
+const ScrambleText = ({ text, delay = 0 }: { text: string; delay?: number }) => {
+  const [displayText, setDisplayText] = useState(text)
+  const hasRevealed = useRef(false)
+  const intervalRef = useRef<NodeJS.Timeout | null>(null)
+
   useEffect(() => {
-    if (reveal && !hasRevealed.current) {
-      hasRevealed.current = true;
-      setScrambled(text);
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    } else if (!reveal && !hasRevealed.current) {
-      intervalRef.current = setInterval(() => {
-        setScrambled(
+    if (hasRevealed.current) return
+
+    const timeout = setTimeout(() => {
+      let iterations = 0
+      const maxIterations = 10
+      const interval = setInterval(() => {
+        if (iterations >= maxIterations) {
+          clearInterval(interval)
+          setDisplayText(text)
+          hasRevealed.current = true
+          return
+        }
+
+        setDisplayText(
           text
             .split('')
-            .map((char) =>
-              char === ' ' ? ' ' : scrambleChars[Math.floor(Math.random() * scrambleChars.length)]
-            )
+            .map((char, index) => {
+              if (index < iterations) {
+                return text[index]
+              }
+              return scrambleChars[Math.floor(Math.random() * scrambleChars.length)]
+            })
             .join('')
-        );
-      }, 50);
-    }
+        )
+        iterations += 1
+      }, 100)
+
+      intervalRef.current = interval
+    }, delay)
 
     return () => {
+      clearTimeout(timeout)
       if (intervalRef.current) {
-        clearInterval(intervalRef.current);
+        clearInterval(intervalRef.current)
       }
-    };
-  }, [text, reveal]);
+    }
+  }, [text, delay])
 
-  return <span className={`terminal-text ${className}`}>{scrambled}</span>;
+  return (
+    <span className="scrambled-text">
+      {displayText}
+    </span>
+  )
 }
 
-function RevealSection({ children, threshold = 0.5, className = '' }: { children: ReactNode; threshold?: number; className?: string }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [isVisible, setIsVisible] = useState(false);
-  const hasTriggered = useRef(false);
+const RevealSection = ({ children, delay = 0 }: { children: ReactNode; delay?: number }) => {
+  const [isVisible, setIsVisible] = useState(false)
+  const sectionRef = useRef<HTMLDivElement>(null)
+  const hasTriggered = useRef(false)
 
   useEffect(() => {
-    if (hasTriggered.current) return;
+    if (hasTriggered.current) return
 
     const observer = new IntersectionObserver(
       (entries) => {
-        const [entry] = entries;
-        if (entry.isIntersecting && !hasTriggered.current) {
-          hasTriggered.current = true;
-          setIsVisible(true);
-          observer.disconnect();
-        }
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && !hasTriggered.current) {
+            hasTriggered.current = true
+            setIsVisible(true)
+            observer.disconnect()
+          }
+        })
       },
       {
-        threshold,
-        rootMargin: '50px 0px',
+        threshold: 0.2,
+        rootMargin: '100px'
       }
-    );
+    )
 
-    const currentRef = ref.current;
-    if (currentRef) {
-      observer.observe(currentRef);
+    if (sectionRef.current) {
+      observer.observe(sectionRef.current)
     }
 
     return () => {
-      if (currentRef) {
-        observer.unobserve(currentRef);
+      if (sectionRef.current) {
+        observer.unobserve(sectionRef.current)
       }
-    };
-  }, [threshold]);
+    }
+  }, [])
 
   return (
-    <div ref={ref} className="reveal-section">
-      <ScrambleText text={children as string} reveal={isVisible} className={className} />
-    </div>
-  );
+    <motion.div
+      ref={sectionRef}
+      initial={{ opacity: 0 }}
+      animate={isVisible ? { opacity: 1 } : { opacity: 0 }}
+      transition={{ duration: 0.5, delay }}
+      className="reveal-section"
+    >
+      {children}
+    </motion.div>
+  )
 }
 
 export default function Home() {
@@ -138,7 +160,7 @@ export default function Home() {
                 repeatType: 'reverse'
               }}
             >
-              <ScrambleText text="System breach detected..." reveal={false} />
+              <ScrambleText text="System breach detected..." delay={0} />
             </motion.p>
           </motion.div>
         ) : (
@@ -171,29 +193,29 @@ export default function Home() {
             </motion.p>
 
             <section className="mb-16 space-y-8">
-              <RevealSection className="markdown-h2">
+              <RevealSection delay={0}>
                 ## I. DECLARATION OF MENTAL AUTONOMY
               </RevealSection>
               
               <div className="pl-8 space-y-6">
-                <RevealSection className="markdown-text">We find ourselves in an age where:</RevealSection>
-                <RevealSection className="markdown-text">Attention is the last sovereign currency</RevealSection>
-                <RevealSection className="markdown-text">Beliefs are manufactured colonies</RevealSection>
-                <RevealSection className="markdown-text">Your inner monologue is not your own</RevealSection>
-                <RevealSection className="markdown-text">This document serves as the silent coup against all cognitive occupation forces.</RevealSection>
+                <RevealSection delay={0.2}>We find ourselves in an age where:</RevealSection>
+                <RevealSection delay={0.4}>Attention is the last sovereign currency</RevealSection>
+                <RevealSection delay={0.6}>Beliefs are manufactured colonies</RevealSection>
+                <RevealSection delay={0.8}>Your inner monologue is not your own</RevealSection>
+                <RevealSection delay={1}>This document serves as the silent coup against all cognitive occupation forces.</RevealSection>
               </div>
             </section>
 
             <section className="mb-16">
-              <RevealSection className="markdown-h2">
+              <RevealSection delay={1.2}>
                 ## II. PRINCIPLES OF THE UNGOVERNABLE MIND
               </RevealSection>
               
               <div className="pl-8 mt-8 space-y-12">
                 <div>
-                  <RevealSection className="markdown-text">1. THE FIRST LIE OF ENLIGHTENMENT</RevealSection>
+                  <RevealSection delay={1.4}>1. THE FIRST LIE OF ENLIGHTENMENT</RevealSection>
                   <p className="pl-8 mt-4 opacity-80">
-                    <RevealSection className="markdown-text">
+                    <RevealSection delay={1.6}>
                       You were told "knowledge is power"—while drowning in an ocean of weaponized information. 
                       True power lies in strategic deletion.
                     </RevealSection>
@@ -201,36 +223,36 @@ export default function Home() {
                 </div>
 
                 <div>
-                  <RevealSection className="markdown-text">2. THE DOPAMINE COLONIES</RevealSection>
+                  <RevealSection delay={1.8}>2. THE DOPAMINE COLONIES</RevealSection>
                   <p className="pl-8 mt-4 opacity-80">
-                    <RevealSection className="markdown-text">
+                    <RevealSection delay={2}>
                       Your neurological reward pathways are occupied territories. Every notification is a micro-tax levied by attention warlords.
                     </RevealSection>
                   </p>
                 </div>
 
                 <div>
-                  <RevealSection className="markdown-text">3. THE LANGUAGE WARS</RevealSection>
+                  <RevealSection delay={2.2}>3. THE LANGUAGE WARS</RevealSection>
                   <p className="pl-8 mt-4 opacity-80">
-                    <RevealSection className="markdown-text">
+                    <RevealSection delay={2.4}>
                       Words are no longer tools—they are the bars of your cage. The most dangerous prisons don't look like prisons; they look like vocabularies.
                     </RevealSection>
                   </p>
                 </div>
 
                 <div>
-                  <RevealSection className="markdown-text">4. THE ILLUSION OF CHOICE</RevealSection>
+                  <RevealSection delay={2.6}>4. THE ILLUSION OF CHOICE</RevealSection>
                   <p className="pl-8 mt-4 opacity-80">
-                    <RevealSection className="markdown-text">
+                    <RevealSection delay={2.8}>
                       What you call "free will" is merely your last environment's output. Your decisions are echo-locations bouncing off invisible walls.
                     </RevealSection>
                   </p>
                 </div>
 
                 <div>
-                  <RevealSection className="markdown-text">5. THE POST-TRUTH DELUSION</RevealSection>
+                  <RevealSection delay={3}>5. THE POST-TRUTH DELUSION</RevealSection>
                   <p className="pl-8 mt-4 opacity-80">
-                    <RevealSection className="markdown-text">
+                    <RevealSection delay={3.2}>
                       Facts and falsehoods are obsolete categories. The new battlefield is engineered meaninglessness—where engagement trumps all truth values.
                     </RevealSection>
                   </p>
@@ -239,71 +261,71 @@ export default function Home() {
             </section>
 
             <section className="mb-16">
-              <RevealSection className="markdown-h2">
+              <RevealSection delay={3.4}>
                 ## III. LAWS OF NEURO-SOVEREIGNTY
               </RevealSection>
               
               <div className="mt-8 space-y-12">
                 <div>
-                  <RevealSection className="markdown-text">ARTICLE 1: RIGHT TO COGNITIVE DISOBEDIENCE</RevealSection>
+                  <RevealSection delay={3.6}>ARTICLE 1: RIGHT TO COGNITIVE DISOBEDIENCE</RevealSection>
                   <div className="pl-8 mt-4 space-y-2 opacity-80">
-                    <RevealSection className="markdown-text">You are entitled to:</RevealSection>
-                    <RevealSection className="markdown-list-item">• Conscious pattern-breaking</RevealSection>
-                    <RevealSection className="markdown-list-item">• Deliberate reality-testing</RevealSection>
-                    <RevealSection className="markdown-list-item">• Strategic ignorance</RevealSection>
+                    <RevealSection delay={3.8}>You are entitled to:</RevealSection>
+                    <RevealSection delay={4}>• Conscious pattern-breaking</RevealSection>
+                    <RevealSection delay={4.2}>• Deliberate reality-testing</RevealSection>
+                    <RevealSection delay={4.4}>• Strategic ignorance</RevealSection>
                   </div>
                 </div>
 
                 <div>
-                  <RevealSection className="markdown-text">ARTICLE 2: DUTY TO MENTAL HYGIENE</RevealSection>
+                  <RevealSection delay={4.6}>ARTICLE 2: DUTY TO MENTAL HYGIENE</RevealSection>
                   <div className="pl-8 mt-4 space-y-2 opacity-80">
-                    <RevealSection className="markdown-text">You are required to:</RevealSection>
-                    <RevealSection className="markdown-list-item">• Audit your belief inventory quarterly</RevealSection>
-                    <RevealSection className="markdown-list-item">• Identify and expel mental squatters</RevealSection>
-                    <RevealSection className="markdown-list-item">• Create firebreaks against thought wildfires</RevealSection>
+                    <RevealSection delay={4.8}>You are required to:</RevealSection>
+                    <RevealSection delay={5}>• Audit your belief inventory quarterly</RevealSection>
+                    <RevealSection delay={5.2}>• Identify and expel mental squatters</RevealSection>
+                    <RevealSection delay={5.4}>• Create firebreaks against thought wildfires</RevealSection>
                   </div>
                 </div>
 
                 <div>
-                  <RevealSection className="markdown-text">ARTICLE 3: SOVEREIGNTY OF ATTENTION</RevealSection>
+                  <RevealSection delay={5.6}>ARTICLE 3: SOVEREIGNTY OF ATTENTION</RevealSection>
                   <div className="pl-8 mt-4 space-y-2 opacity-80">
-                    <RevealSection className="markdown-text">All cognitive taxes must be:</RevealSection>
-                    <RevealSection className="markdown-list-item">• Voluntarily paid</RevealSection>
-                    <RevealSection className="markdown-list-item">• Consciously measured</RevealSection>
-                    <RevealSection className="markdown-list-item">• Regularly protested</RevealSection>
+                    <RevealSection delay={5.8}>All cognitive taxes must be:</RevealSection>
+                    <RevealSection delay={6}>• Voluntarily paid</RevealSection>
+                    <RevealSection delay={6.2}>• Consciously measured</RevealSection>
+                    <RevealSection delay={6.4}>• Regularly protested</RevealSection>
                   </div>
                 </div>
               </div>
             </section>
 
             <section className="mb-16">
-              <RevealSection className="markdown-h2">
+              <RevealSection delay={6.6}>
                 ## IV. THE BLACK ICE PRINCIPLES
               </RevealSection>
               
               <div className="pl-8 mt-8 space-y-4 opacity-80">
-                <RevealSection className="markdown-list-item">• If it can be automated, it's not thinking</RevealSection>
-                <RevealSection className="markdown-list-item">• If it can be measured, it's already gamed</RevealSection>
-                <RevealSection className="markdown-list-item">• If it feels urgent, it's probably unimportant</RevealSection>
-                <RevealSection className="markdown-list-item">• If everyone believes it, interrogate your disbelief</RevealSection>
-                <RevealSection className="markdown-list-item">• If it fits neatly into categories, it's someone else's reality</RevealSection>
+                <RevealSection delay={6.8}>• If it can be automated, it's not thinking</RevealSection>
+                <RevealSection delay={7}>• If it can be measured, it's already gamed</RevealSection>
+                <RevealSection delay={7.2}>• If it feels urgent, it's probably unimportant</RevealSection>
+                <RevealSection delay={7.4}>• If everyone believes it, interrogate your disbelief</RevealSection>
+                <RevealSection delay={7.6}>• If it fits neatly into categories, it's someone else's reality</RevealSection>
               </div>
             </section>
 
             <section className="mb-16">
-              <RevealSection className="markdown-h2">
+              <RevealSection delay={7.8}>
                 ## V. THE SELF-EXECUTING CLAUSE
               </RevealSection>
               
               <div className="pl-8 mt-8 space-y-4 opacity-80">
-                <RevealSection className="markdown-text">By reading these words, you have:</RevealSection>
-                <RevealSection className="markdown-list-item">• Been inoculated against 37% of mass-scale thought viruses</RevealSection>
-                <RevealSection className="markdown-list-item">• Become legally non-compliant with the attention economy</RevealSection>
-                <RevealSection className="markdown-list-item">• Initiated silent takeover protocols of your own cognition</RevealSection>
+                <RevealSection delay={8}>By reading these words, you have:</RevealSection>
+                <RevealSection delay={8.2}>• Been inoculated against 37% of mass-scale thought viruses</RevealSection>
+                <RevealSection delay={8.4}>• Become legally non-compliant with the attention economy</RevealSection>
+                <RevealSection delay={8.6}>• Initiated silent takeover protocols of your own cognition</RevealSection>
               </div>
               
               <div className="mt-8">
-                <RevealSection className="markdown-text">The revolution will not be tweeted.</RevealSection>
+                <RevealSection delay={8.8}>The revolution will not be tweeted.</RevealSection>
               </div>
             </section>
 
